@@ -1,25 +1,37 @@
 package com.fw.qa.baseclass;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
-
+import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
+import org.testng.ITestResult;
 import org.testng.annotations.Test;
 
 import com.fw.qa.utilities.TestUtil;
+import com.relevantcodes.extentreports.ExtentReports;
+import com.relevantcodes.extentreports.ExtentTest;
+import com.relevantcodes.extentreports.LogStatus;
+
 
 public class TestBase {
 	
 	public static WebDriver driver;
 	public static Properties prop;
+	public ExtentReports extent;
+	public ExtentTest extenttest;
 	
 	public TestBase(){
 		try {
@@ -34,12 +46,11 @@ public class TestBase {
 	}
 	
 	
-	
 	public static void initialization(){
 		String browserName = prop.getProperty("browser");
 		
 		if(browserName.equals("chrome")){
-			System.setProperty("webdriver.chrome.driver", "C:\\eclipse\\chromedriver.exe");	
+			System.setProperty("webdriver.chrome.driver", System.getProperty("user.dir")+"\\src\\main\\java\\com\\fw\\qa\\config\\chromedriver.exe");	
 			driver = new ChromeDriver(); 
 		}
 		else if(browserName.equals("FF")){
@@ -57,5 +68,51 @@ public class TestBase {
 		
 		
 	}
+	
+	public void extentreport(){
+		extent = new ExtentReports(System.getProperty("user.dir")+"/test-output/ExentReport.html", true);
+		extent.addSystemInfo("Host Name", "Avani PC");
+		extent.addSystemInfo("Env", "QA");
+		extent.addSystemInfo("Tester", "Avani");
+		System.out.println("Extent Report setup done");
+	}
+
+public void endreport(){
+		
+		extent.flush();
+		extent.close();
+	}
+public static String getscreenshot(WebDriver driver,String scrname) throws IOException{
+	
+	String Datename = new SimpleDateFormat("yyyymmdd").format(new Date());
+	File scr = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+	String destination = System.getProperty("user.dir") + "/FailedTestsScreenshots/" + scrname + Datename
+			+ ".png";
+	File finalDestination = new File(destination);
+	FileUtils.copyFile(scr, finalDestination);
+	return destination;
+}
+
+public void extentteardown(ITestResult result ) throws IOException{
+	
+	if(result.getStatus()==ITestResult.FAILURE){
+		
+		extenttest.log(LogStatus.FAIL, "Test case failed is -- "+result.getName());
+		extenttest.log(LogStatus.FAIL, result.getThrowable());
+		
+		String scrpath = TestBase.getscreenshot(driver,result.getName());
+		extenttest.log(LogStatus.FAIL, extenttest.addScreenCapture(scrpath));
+	}else if(result.getStatus()==ITestResult.SKIP){
+		
+		extenttest.log(LogStatus.SKIP, "Test case skipped is -- "+result.getName());
+	}else if (result.getStatus()== ITestResult.SUCCESS){
+		
+		extenttest.log(LogStatus.PASS, "Test Case Passed is --" + result.getName());
+	}
+	
+	extent.endTest(extenttest);
+	
+	
+}
 
 }
